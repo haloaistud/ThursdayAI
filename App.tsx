@@ -5,7 +5,7 @@ import Onboarding from './components/Onboarding';
 import HistoryPanel from './components/HistoryPanel';
 import Login from './components/Login';
 import { UserProfile } from './types';
-import { isAuthenticated as checkAuth, logout } from './services/auth';
+import { isAuthenticated as checkAuth, logout, getAuthRole } from './services/auth';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -28,10 +28,28 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    // Re-check profile after login
-    const savedProfile = localStorage.getItem('friday_user_profile');
-    if (savedProfile) {
-       try { setUserProfile(JSON.parse(savedProfile)); } catch(e){}
+    const role = getAuthRole();
+
+    if (role === 'guest') {
+        // Auto-provision guest profile so they skip onboarding
+        const guestProfile: UserProfile = {
+            name: 'Guest User',
+            age: 'N/A',
+            info: 'Limited access session. Data may not persist.'
+        };
+        setUserProfile(guestProfile);
+        // We do NOT save guest profile to localStorage permanently to avoid overwriting real user data
+        // or we save it but logout clears it. Logic handles it in services/auth.ts logout.
+        localStorage.setItem('friday_user_profile', JSON.stringify(guestProfile));
+    } else {
+        // Regular user: Check for existing profile
+        const savedProfile = localStorage.getItem('friday_user_profile');
+        if (savedProfile) {
+           try { setUserProfile(JSON.parse(savedProfile)); } catch(e){}
+        } else {
+           // No profile found, trigger Onboarding
+           setUserProfile(null); 
+        }
     }
   };
 
@@ -41,6 +59,8 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) return <Login onLogin={handleLoginSuccess} />;
+  
+  // If authenticated but no profile (and not guest handled above), show onboarding
   if (!userProfile) return <Onboarding onComplete={handleProfileCreation} />;
 
   return (
@@ -83,8 +103,8 @@ const App: React.FC = () => {
               </span>
               ALL SYSTEMS NOMINAL
            </div>
-           <button onClick={logout} className="mt-4 text-[9px] text-red-500 hover:text-red-400 uppercase tracking-widest font-bold">
-              Terminate Session
+           <button onClick={logout} className="mt-4 text-[9px] text-red-500 hover:text-red-400 uppercase tracking-widest font-bold flex items-center gap-2">
+              <span>⏻</span> Terminate Session
            </button>
         </div>
       </aside>
@@ -105,7 +125,9 @@ const App: React.FC = () => {
            <div className="flex items-center gap-6">
               <div className="text-right hidden sm:block">
                  <div className="text-xs font-bold text-white tracking-widest uppercase">{userProfile.name}</div>
-                 <div className="text-[9px] text-[#ffcc00] font-mono tracking-widest uppercase opacity-60">Level 10 Clearance</div>
+                 <div className="text-[9px] text-[#ffcc00] font-mono tracking-widest uppercase opacity-60">
+                    {getAuthRole() === 'guest' ? 'Visitor Clearance' : 'Level 10 Clearance'}
+                 </div>
               </div>
               <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-lg">
                   👤
