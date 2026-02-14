@@ -1,0 +1,7 @@
+{
+  "name": "FRIDAY AI - Advanced Vocal Intelligence",
+  "description": "A high-reasoning conversational agent with real-time speech recognition and synthesis powered by Gemini 2.5 Native Audio.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
